@@ -1,0 +1,8 @@
+# Requirements for PDF Processor Service
+flask
+gunicorn
+google-cloud-storage
+psycopg2-binary
+pdfplumber
+python-dotenv # For local testing only
+google-cloud-pubsub

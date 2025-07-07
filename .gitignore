@@ -1,0 +1,19 @@
+# Node
+node_modules/
+build/
+dist/
+.env
+
+# Python
+__pycache__/
+*.pyc
+.env
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# Sensitive Terraform variable files
+terraform.tfvars

@@ -1,0 +1,73 @@
+name: Deploy Backend Services to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**' # Trigger only when changes occur in the backend directory
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1 # Must match your Terraform region
+
+jobs:
+  deploy-pdf-processor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and Deploy PDF Processor Service
+        id: deploy_pdf_processor
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: pdf-processor
+          image: gcr.io/${{ env.PROJECT_ID }}/pdf-processor
+          region: ${{ env.REGION }}
+          source: backend/pdf_processor
+          # Environment variables are now mounted directly from Secret Manager via Terraform config
+          # No need to pass DB_PASSWORD here
+          # Cloud Run will automatically use buildpacks if no Dockerfile is provided,
+          # which simplifies things for beginners.
+
+      - name: Verify PDF Processor Deployment
+        run: echo "PDF Processor Service deployed to: ${{ steps.deploy_pdf_processor.outputs.url }}"
+
+  deploy-api-service:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and Deploy API Service
+        id: deploy_api_service
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: financial-api
+          image: gcr.io/${{ env.PROJECT_ID }}/financial-api
+          region: ${{ env.REGION }}
+          source: backend/api_service
+          # Environment variables are now mounted directly from Secret Manager via Terraform config
+          # No need to pass DB_PASSWORD or GEMINI_API_KEY here
+
+      - name: Verify API Service Deployment
+        run: echo "API Service deployed to: ${{ steps.deploy_api_service.outputs.url }}"

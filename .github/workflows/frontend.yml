@@ -1,0 +1,52 @@
+name: Deploy Frontend to GCS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**' # Trigger only when changes occur in the frontend directory
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Or a suitable version for React
+
+      - name: Install frontend dependencies
+        run: npm install
+        working-directory: frontend
+
+      - name: Inject API Endpoint into React App
+        run: |
+          echo "REACT_APP_API_ENDPOINT=${{ secrets.API_SERVICE_URL }}" > frontend/.env.production
+        working-directory: frontend
+
+      - name: Build React App
+        run: npm run build
+        working-directory: frontend
+
+      - name: Authenticate Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Upload to Google Cloud Storage
+        uses: google-github-actions/upload-cloud-storage@v2
+        with:
+          path: frontend/build
+          destination: ${{ secrets.FRONTEND_BUCKET_NAME }} # Use the dedicated frontend bucket
+          parent: false # Uploads contents of 'build' directly to root of bucket
+          gzip: true
+          resumable: true
+          predefinedAcl: publicRead # Makes files publicly accessible for web hosting
