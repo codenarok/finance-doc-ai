@@ -144,18 +144,20 @@ def process_pdf_event():
 
     logger.info(f"Received event: {json.dumps(event, indent=2)}")
 
-    # GCS event structure for object finalization
-    if "message" in event and "data" in event["message"]:
+
+    # Optional shortcut for manual POST testing (not from GCS)
+    if "bucket" in event and "name" in event:
+        bucket_name = event["bucket"]
+        file_name = event["name"]
+        logger.info(f"[Manual Trigger] Processing gs://{bucket_name}/{file_name}")
+        # You can add content_type if needed, or set a default
+        content_type = event.get("contentType", "")
+    elif "message" in event and "data" in event["message"]:
         # Pub/Sub message from GCS notification
         data = json.loads(event["message"]["data"])
         bucket_name = data["bucket"]
         file_name = data["name"]
         content_type = data["contentType"]
-    elif "bucket" in event and "name" in event:
-        # Direct GCS trigger (e.g., Eventarc)
-        bucket_name = event["bucket"]
-        file_name = event["name"]
-        content_type = event.get("contentType", "")
     else:
         logger.warning("Unknown event format.")
         return jsonify({"status": "Unknown event format"}), 400

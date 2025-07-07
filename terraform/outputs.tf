@@ -32,12 +32,4 @@ output "db_name" {
   value       = google_sql_database.financial_db.name
 }
 
-output "frontend_bucket_name" {
-  description = "Name of the GCS bucket for frontend assets."
-  value       = google_storage_bucket.frontend_bucket.name
-}
 
-output "frontend_url" {
-  description = "URL of the static website hosted on GCS."
-  value       = "http://storage.googleapis.com/${google_storage_bucket.frontend_bucket.name}/index.html"
-}
