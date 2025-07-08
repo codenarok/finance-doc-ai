@@ -148,19 +148,21 @@ resource "google_cloud_run_service" "pdf_processor_service" {
   location = var.region
   project  = var.project_id
   template {
+    metadata {
+      annotations = {
+        "autoscaling.knative.dev/minScale" = "0" # Scale to zero when idle
+        "autoscaling.knative.dev/maxScale"         = "1" # Keep max instances low for cost
+        "run.googleapis.com/cloudsql-instances" = "finance-doc-ai:europe-west2:finance-doc-ai-pg-instance"
+      }
+    }
     spec {
       service_account_name = google_service_account.cloud_run_sa.email
       containers {
         image = "gcr.io/${var.project_id}/pdf-processor:latest" # Placeholder image
         resources {
           limits = {
-            cpu    = "1000m" # 1 CPU
-            memory = "512Mi" # 512 MB memory
+            memory = "1Gi"
           }
-        }
-        env {
-          name  = "DB_HOST"
-          value = "projects/${var.project_id}/locations/${var.region}/instances/${google_sql_database_instance.postgres_instance.name}"
         }
         env {
           name  = "DB_USER"
@@ -179,15 +181,12 @@ resource "google_cloud_run_service" "pdf_processor_service" {
             }
           }
         }
+        env {
+          name = "INSTANCE_CONNECTION_NAME"
+          value = "finance-doc-ai:europe-west2:finance-doc-ai-pg-instance"
+        }
       }
-    }
-    metadata {
-      annotations = {
-        "autoscaling.knative.dev/minScale" = "0" # Scale to zero when idle
-        "run.googleapis.com/vpc-access-connector" = google_vpc_access_connector.connector.id
-        "run.googleapis.com/vpc-access-egress"    = "all-traffic"
-        "autoscaling.knative.dev/maxScale"         = "1" # Keep max instances low for cost
-      }
+      # vpc_access block removed; VPC settings are handled via annotations for v1 resource
     }
   }
   traffic {
@@ -216,6 +215,13 @@ resource "google_cloud_run_service" "api_service" {
   location = var.region
   project  = var.project_id
   template {
+    metadata {
+      annotations = {
+        "autoscaling.knative.dev/minScale" = "0" # Scale to zero when idle
+        "autoscaling.knative.dev/maxScale"         = "1" # Keep max instances low for cost
+        "run.googleapis.com/cloudsql-instances" = "finance-doc-ai:europe-west2:finance-doc-ai-pg-instance"
+      }
+    }
     spec {
       service_account_name = google_service_account.cloud_run_sa.email
       containers {
@@ -225,10 +231,6 @@ resource "google_cloud_run_service" "api_service" {
             cpu    = "1000m" # 1 CPU
             memory = "512Mi" # 512 MB memory
           }
-        }
-        env {
-          name  = "DB_HOST"
-          value = "projects/${var.project_id}/locations/${var.region}/instances/${google_sql_database_instance.postgres_instance.name}"
         }
         env {
           name  = "DB_USER"
@@ -256,15 +258,12 @@ resource "google_cloud_run_service" "api_service" {
             }
           }
         }
+        env {
+          name = "INSTANCE_CONNECTION_NAME"
+          value = "finance-doc-ai:europe-west2:finance-doc-ai-pg-instance"
+        }
       }
-    }
-    metadata {
-      annotations = {
-        "autoscaling.knative.dev/minScale" = "0" # Scale to zero when idle
-        "run.googleapis.com/vpc-access-connector" = google_vpc_access_connector.connector.id
-        "run.googleapis.com/vpc-access-egress"    = "all-traffic"
-        "autoscaling.knative.dev/maxScale"         = "1" # Keep max instances low for cost
-      }
+      # vpc_access block removed; VPC settings are handled via annotations for v1 resource
     }
   }
   traffic {

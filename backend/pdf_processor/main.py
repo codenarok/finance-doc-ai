@@ -12,11 +12,15 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+
 # Environment variables for database connection - now populated from Secret Manager
-DB_HOST = os.environ.get("DB_HOST") # Cloud SQL connection name for Cloud Run
 DB_USER = os.environ.get("DB_USER")
 DB_PASSWORD = os.environ.get("DB_PASSWORD") # Fetched securely from Secret Manager
 DB_NAME = os.environ.get("DB_NAME")
+
+# Build the socket path explicitly
+INSTANCE_CONNECTION_NAME = os.environ["INSTANCE_CONNECTION_NAME"]
+socket_path = f"/cloudsql/{INSTANCE_CONNECTION_NAME}"
 
 # Initialize Google Cloud Storage client
 storage_client = storage.Client()
@@ -25,11 +29,10 @@ def get_db_connection():
     """Establishes a connection to the PostgreSQL database."""
     try:
         conn = psycopg2.connect(
-            host=DB_HOST,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            dbname=DB_NAME,
-            sslmode="disable" # For Cloud SQL, connection via Cloud SQL Proxy or VPC Connector
+            host=f"/cloudsql/{os.environ['INSTANCE_CONNECTION_NAME']}",
+            dbname=os.environ['DB_NAME'],
+            user=os.environ['DB_USER'],
+            password=os.environ['DB_PASSWORD']
         )
         return conn
     except Exception as e:
@@ -51,6 +54,11 @@ def create_table_if_not_exists():
                 text_content TEXT NOT NULL,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
+
+            -- 👇 NEW: guarantee uniqueness so ON CONFLICT works
+            CREATE UNIQUE INDEX IF NOT EXISTS uniq_doc_page_chunk
+              ON document_chunks (document_name, page_number, chunk_index);
+
             CREATE INDEX IF NOT EXISTS idx_document_name ON document_chunks (document_name);
             CREATE INDEX IF NOT EXISTS idx_text_content_gin ON document_chunks USING GIN (to_tsvector('english', text_content));
         """)
@@ -78,9 +86,12 @@ def extract_text_from_pdf(bucket_name, file_name):
         extracted_data = []
         with pdfplumber.open(download_path) as pdf:
             for i, page in enumerate(pdf.pages):
-                text = page.extract_text()
-                if text:
-                    extracted_data.append((i + 1, text)) # Page numbers are 1-indexed
+                try:
+                    text = page.extract_text()
+                    if text:
+                        extracted_data.append((i + 1, text))  # Page numbers are 1-indexed
+                except Exception as e:
+                    logger.error(f"Failed to extract text from page {i + 1} of {file_name}: {e}")
         logger.info(f"Extracted text from {len(extracted_data)} pages of {file_name}")
         return extracted_data
     except Exception as e:

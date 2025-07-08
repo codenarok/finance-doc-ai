@@ -1,17 +1,18 @@
-# Use Python
-FROM python:3.9
+# ---- Build image ----
+FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Copy files
+# Install Python deps first (better layer-caching)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the source code
 COPY . .
 
-# Install dependencies
-RUN pip install -r requirements.txt
-
-# Expose port
+# Expose Cloud Run port
+ENV PORT=8080
 EXPOSE 8080
 
-# Run your app
-CMD ["python", "main.py"]
+# Start with gunicorn – 1 worker is fine for a small API
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "main:app"]

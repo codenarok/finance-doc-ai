@@ -12,11 +12,12 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app) # Enable CORS for all routes
 
+
 # Environment variables for database connection - now populated from Secret Manager
-DB_HOST = os.environ.get("DB_HOST")
 DB_USER = os.environ.get("DB_USER")
 DB_PASSWORD = os.environ.get("DB_PASSWORD") # Fetched securely from Secret Manager
 DB_NAME = os.environ.get("DB_NAME")
+INSTANCE_CONNECTION_NAME = os.environ.get("INSTANCE_CONNECTION_NAME")
 
 # Configure Gemini API - key fetched securely from Secret Manager
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -30,11 +31,10 @@ def get_db_connection():
     """Establishes a connection to the PostgreSQL database."""
     try:
         conn = psycopg2.connect(
-            host=DB_HOST,
-            user=DB_USER,
-            password=DB_PASSWORD,
+            host=f"/cloudsql/{INSTANCE_CONNECTION_NAME}",
             dbname=DB_NAME,
-            sslmode="disable"
+            user=DB_USER,
+            password=DB_PASSWORD
         )
         return conn
     except Exception as e:

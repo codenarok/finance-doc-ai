@@ -1,4 +1,8 @@
 Flask
+flask-cors 
+flask_cors
+gunicorn
+google-cloud-storage
 psycopg2-binary
 google-generativeai
 python-dotenv # For local testing only
